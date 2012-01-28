@@ -32,7 +32,7 @@ NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
 subdir = .
-DIST_COMMON = $(am__configure_deps) $(srcdir)/Makefile.am \
+DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
 	$(top_srcdir)/configure depcomp install-sh missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -125,7 +125,7 @@ INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
-LIBS = @LIBS@
+LIBS = boost_program_options-mt
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MKDIR_P = @MKDIR_P@
