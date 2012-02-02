@@ -5,6 +5,10 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
 
 #include <chess/server/options.hpp>
 #include <chess/server/logger.hpp>
@@ -15,6 +19,8 @@
 
 namespace chess {
     namespace server {
+        void sigchld_handler(int);
+
         class primary {
             public:
                 primary(chess::server::options *server_options,
@@ -30,6 +36,13 @@ namespace chess {
 
                 bool main_connect() {
                     this->m_logger->log("creating primary connection");
+                    /* TODO:
+                        * handle errors for the following functions:
+                            * getaddrinfo
+                            * bind
+                            * setsockopt
+                        * add better response.
+                            */
                     memset(&m_hints,0,sizeof m_hints);
 
                     m_hints.ai_family = AF_UNSPEC;
@@ -40,6 +53,9 @@ namespace chess {
                     getaddrinfo(NULL,boost::lexical_cast<std::string>(m_server_options->port()).c_str(),&m_hints,&m_res);
 
                     this->m_logger->log("creating socket");
+                    /* TODO: Change this socketing to match loop described in
+                        http://beej.us/guide/bgnet/output/html/multipage/clientserver.html
+                        */
                     m_sockfd = socket(m_res->ai_family,m_res->ai_socktype,m_res->ai_protocol);
 
                     this->m_logger->log("binding socket to port" + boost::lexical_cast<std::string>(m_server_options->port()));
@@ -59,21 +75,47 @@ namespace chess {
 
                 void start_listen() {
                     this->m_logger->log("start_listen called");
+                    /* TODO:
+                        * Add error handling for the following functions:
+                            * listen
+                            * accept
+                            * recv
+                            * send
+                            */
                     listen(m_sockfd,m_server_options->backlog_limit());
 
                     this->m_logger->log("beginning the accept loop");
 
-                    struct sockaddr_storage their_addr;
-                    socklen_t addr_size;
-                    addr_size = sizeof their_addr;
+                    while (1) {
+                        struct sockaddr_storage their_addr;
+                        socklen_t addr_size;
+                        addr_size = sizeof their_addr;
 
-                    int new_fd = accept(m_sockfd,(struct sockaddr *)&their_addr,&addr_size);
-                    std::string typical_message = "chess server what nots";
-                    char msg[200];
+                        int new_fd = accept(m_sockfd,(struct sockaddr *)&their_addr,&addr_size);
+                        std::string typical_message = "chess server what nots\n";
+                        char msg[200];
 
-                    recv(new_fd,msg,200,0);
-                    send(new_fd,typical_message.c_str(),strlen(typical_message.c_str()),0);
-                    close(new_fd);
+                        if ( ! fork() ) {
+                            close(m_sockfd);
+                            if ( send(new_fd,typical_message.c_str(),strlen(typical_message.c_str()),0) == -1 ) {
+                                this->m_logger->error("Could not send message in child pid.");
+                            }
+                            sleep(10);
+                            if ( send(new_fd,typical_message.c_str(),strlen(typical_message.c_str()),0) == -1 ) {
+                                this->m_logger->error("Could not send message in child pid.");
+                            }
+                            close(new_fd);
+                            exit(0);
+                        }
+
+                        close(new_fd);
+                        /*recv(new_fd,msg,200,0);
+                        send(new_fd,typical_message.c_str(),strlen(typical_message.c_str()),0);*/
+                    }
+                    /* TODO: 
+                        * Implement getpeername so that I can know who connected.
+                        * Implement gethostname so that I can know who I am.
+                        */
                 }
             protected:
 
@@ -84,6 +126,10 @@ namespace chess {
                 struct addrinfo *m_res;
                 int m_sockfd;
         };
+
+        void sigchld_handler(int s) {
+            while(waitpid(-1,NULL,WNOHANG) > 0);
+        }
     }
 }
 
