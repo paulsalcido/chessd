@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <signal.h>
 #include <sys/wait.h>
@@ -88,12 +89,28 @@ namespace chess {
 
                     while (1) {
                         struct sockaddr_storage their_addr;
+                        struct sockaddr_in peer_addr;
+                        struct sockaddr_in6 peer_addr6;
                         socklen_t addr_size;
+                        socklen_t peer_addr_size;
+                        socklen_t peer_addr_size6;
                         addr_size = sizeof their_addr;
 
                         int new_fd = accept(m_sockfd,(struct sockaddr *)&their_addr,&addr_size);
                         std::string typical_message = "chess server what nots\n";
                         char msg[200];
+
+                        peer_addr_size = sizeof peer_addr;
+                        peer_addr_size6 = sizeof peer_addr6;
+
+                        char peer_char_v4[INET_ADDRSTRLEN];
+                        char peer_char_v6[INET6_ADDRSTRLEN];
+
+                        //getpeername(new_fd,(struct sockaddr *)&their_addr,&peer_addr_size);
+                        inet_ntop(AF_INET,&their_addr,peer_char_v4,INET_ADDRSTRLEN);
+                        this->m_logger->debug((char*)peer_char_v4);
+                        inet_ntop(AF_INET6,&their_addr,peer_char_v6,INET6_ADDRSTRLEN);
+                        this->m_logger->debug((char*)peer_char_v6);
 
                         if ( ! fork() ) {
                             close(m_sockfd);
