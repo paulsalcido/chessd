@@ -34,7 +34,12 @@ namespace chess {
 
                 void error(std::string output) {
                     boost::posix_time::ptime now = boost::posix_time::second_clock::local_time();
-                    *m_os << "[" << now << "] " << output << std::endl;
+                    *m_err << "[" << now << "] " << output << std::endl;
+                }
+
+                void debug(std::string output) {
+                    boost::posix_time::ptime now = boost::posix_time::second_clock::local_time();
+                    *m_dbg << "[" << now << "] " << output << std::endl;
                 }
 
                 std::ostream *os() {
@@ -76,6 +81,10 @@ namespace chess {
                         success = true;
                         ((std::ofstream*)m_os)->close();
                         delete m_os;
+                        ((std::ofstream*)m_err)->close();
+                        delete m_err;
+                        ((std::ofstream*)m_dbg)->close();
+                        delete m_dbg;
                     }
                     return success;
                 }

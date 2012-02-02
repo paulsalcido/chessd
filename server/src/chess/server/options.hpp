@@ -19,6 +19,7 @@ namespace chess {
                 m_max_port_range(max_port_range),
                 m_min_port_range(min_port_range),
                 m_port(port),
+                m_backlog_limit(20),
                 m_log_directory(".")
             { }
 
@@ -28,6 +29,7 @@ namespace chess {
                     std::string log_directory):
                 m_max_port_range(max_port_range),
                 m_min_port_range(min_port_range),
+                m_backlog_limit(20),
                 m_port(port),
                 m_log_directory(log_directory)
             { }
@@ -60,6 +62,13 @@ namespace chess {
             }
             int option_errors() {
                 return this->m_option_errors;
+            }
+
+            int backlog_limit(int i_backlog_limit) {
+                return this->m_backlog_limit = i_backlog_limit;
+            }
+            int backlog_limit() {
+                return this->m_backlog_limit;
             }
 
             int port(int i_port) {
@@ -95,7 +104,15 @@ namespace chess {
                 }
             
                 (*logger)->log("Started logger");
-            
+ 
+                if ( vm.count("backlog_limit") ) {
+                    this->backlog_limit(vm["backlog_limit"].as<int>());
+                    (*logger)->log("backlog_limit retrieved " + boost::lexical_cast<std::string>(this->backlog_limit()));
+                } else {
+                    (*logger)->log("Missing option 'backlog_limit', setting to 20");
+                    this->backlog_limit(20);
+                }
+ 
                 if ( vm.count("port") ) {
                     this->port(vm["port"].as<int>());
                     (*logger)->log("port retrieved " + boost::lexical_cast<std::string>(this->port()));
@@ -127,6 +144,7 @@ namespace chess {
             int m_max_port_range;
             int m_min_port_range;
             int m_option_errors;
+            int m_backlog_limit;
             std::string m_log_directory;
         };
     }
