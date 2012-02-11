@@ -1,0 +1,164 @@
+FICS Format, server to client
+
+Author: Paul Salcido
+Date: 2012/02
+
+I was trying to write a chess server for fun and for my office (I have little socket and shared memory
+experience, so I thought that this might be a fun way to start).  Anyhow, this will describe the basics
+of how a fics chess server works and how to send data to xboard in a meaningful way.  It does not appear
+that this documentation currently exists online, so this will slowly document what is important.
+
+I. Logging In
+
+First, the user must be able to log in.  The data is sent to the server as two strings from telnet, or
+you can set yours up any way you want.  Note that FICS accepts guest and a blank line to login as guest.
+What is really important is the line from the server:
+
+Logging you in as "A";
+
+Very serious, just that exact line.  It's an unclean way to go, but it is needed so that the system can
+know who is 'me', or else it will not respond to game requests.  Please note that anything may be
+displayed after the fact, but that the line should probably start with what is above.  I have not done
+extensive testing.
+
+II. What is the server type?
+
+There are a bunch of chess servers, and I'm looking at FICS right now, so the next important message that
+comes from the server is the server type.  The way that we let xboard know this is by sending the command
+prompt for an ics server:
+
+ics%
+
+Note that before ics%, much like after the login message, you may put some extra stuff.  At this point,
+xboard is going to send you a bunch of style information.  I will get into that in another document
+later.
+
+III. You are now playing a game
+
+In order to force a player to start a game, you must send them the "You are now starting a game" line.
+They will know if they are white or black based on their position in the following line:
+
+<12> rnbqkbnr pppppppp -------- -------- -------- -------- PPPPPPPP RNBQKBNR W -1 1 1 1 1 0 182 B A -1 500 500 39 39 30000000 30000000 1 none (0:00.000) none 1 0 0
+
+For those not familiar with the way that the beginning part of the line looks, they should spend some time
+learning FEN format.  If you are not familiary with FEN, please go out and do so now, because I will
+otherwise be skipping the first 8 blocks of text.  I will describe the first blocks as ICSFEN from here on
+out because it is not exactly fen, but it looks similar.  That being said, the line is broken up like
+this:
+
+<STYLE> <ICSFEN> <TURN> <DOUBLE-PAWN> <WHITE-CASTLE-SHORT> <WHITE-CASTLE-LONG> <BLACK-CASTLE-SHORT>
+ <BLACK-CASTLE-LONG> <DRAW-MOVE-COUNT> <GAME-NUMBER> <WHITE-NAME> <BLACK-NAME> <GAME-RELATION>
+ <INITIAL-TIME-SECONDS> <INCREMENT-TIME-SECONDS> <WHITE-MATERIAL> <BLACK-MATERIAL> <WHITE-TIME-REMAINS>
+ <BLACK-TIME-REMAINS> <MOVE-NUMBER> <PREVIOUS-MOVE> <TIME-TAKEN> <PRETTY-PREVIOUS-MOVE> <FLIP-FIELD>
+
+Please note that a lot of the following information is stripped directly from the information on 'help
+style12' which is available after you telnet to freechess.org, port 5000.
+
+* STYLE
+
+This describes the style that is being used for explaining chess moves.  In this case, the above format 
+is 'Style 12', hence the #12 in the <>.  Please note that you must include the <> around it.  The line
+must start with <12>.
+
+* ICSFEN
+
+I'll see if I can't describe this in more detail later.  I really think it is pretty self-explanatory, as
+if you are interested in chess, you will know FEN.  This is an expanded FEN, but I'm just a lazy
+programmer, so deal with it.
+
+* TURN
+
+Whose turn is it to move.  This field can either be 'W' or 'B'.
+
+* DOUBLE-PAWN
+
+This says whether or not the last move was a double pawn move.  This will be used by the engine in, I
+would imagine, a case where the notation was not descriptive enough.  For instance, in short notation,
+a pawn moving from e3 to e4 is e4, while the same is true of a pawn moving from e2.  This value is filled
+with the ending row for that pawn.  It can be a bunch of values, but for standard, only the value of 3 is 
+valid.  This is because it is the ending point of the pawn from the moving perspective (from what I can
+tell). In the case that there was not a double pawn move, the value is -1.
+
+* CASTLE (WHITE-CASTLE-LONG WHITE-CASTLE-SHORT BLACK-CASTLE-LONG BLACK-CASTLE-SHORT)
+
+The next fields are 0 or 1, 0 if the castle described is possible, 1 if it is.
+
+* DRAW-MOVE-COUNT
+
+The number of moves since the last irreversible action.  This is used for drawing purposes.  Irreversible
+moves include pawn moves and takes.
+
+* GAME-NUMBER
+
+The game number on the server.
+
+* WHITE-NAME BLACK-NAME
+
+The names of the players.  The chess server decides if it is your move based on the values in here, and
+based on the login value.
+
+* GAME-RELATION
+
+A hash of possible values, matching the following:
+
+ * -3 : Isolated position, not following any type of game.
+ * -2 : I am observing a game that is being examined.
+ * 2  : I am the examiner of this game.
+ * -1 : I am playing, it is the opponents move
+ * 1  : My turn to move
+ * 0  : I am watching a game being played.
+
+* INITIAL-TIME-SECONDS INCREMENT-TIME-SECONDS
+
+The initial time in seconds, and the amount of the increment in seconds (there is no delay allowed up in
+this house).
+
+* WHITE-MATERIAL BLACK-MATERIAL
+
+This value is the value of all material for each player, declines as captures happen:
+
+8 pawns x 1 + 2 rooks x 5 + 2 knights x 3 + 2 bishops x 3 + 1 queen * 9 = 39.
+
+* WHITE-TIME-REMAINS BLACK-TIME-REMAINS
+
+In milliseconds, the amount of time remaining for each player.
+
+* MOVE-NUMBER
+
+The move number in standard form, the first move for black and the first move for white are both 1.
+
+* PREVIOUS-MOVE
+
+The move in expanded piece move notation.  This notation looks like:
+
+ <PIECE>/<START>-<FINISH>
+
+where piece is one of the characters RNBQKP (Rook, Knight, Bishop, Queen, King, Pawn, respectively) and
+then start/finish where the values are column and row, concatenated.  So, Pawn from e2 to e4 would be
+"P/e2-e4".  I have also test "O-O" in this field, and xboard did not complain.
+
+* TIME-TAKEN
+
+The amount of time the last move took.
+
+* PRETTY-PREVIOUS-MOVE
+
+A prettified version of the previous move, displayed on screen.
+
+* FLIP-FIELD
+
+0 if this should be viewed as black, 1 for white.
+
+IV. Finishing the game
+
+There are all kinds of text that let the computer know the game is over.  There is also a chunk of text
+that can be found in xboard that describes some of the stuff that can be sent back and forth.  The
+following chunks are some examples that can be sent to mark the end of a game:
+
+{Game %N (%A vs. %B) Game drawn by mutual agreement} 1/2-1/2
+{Game %N (%A vs. %B) %B resigns} 1-0
+{Game %N (%A vs. %B) %B checkmated} 1-0
+
+Etc.
+
+TODO: Add information from the xboard source here.

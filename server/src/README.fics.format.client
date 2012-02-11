@@ -1,0 +1,25 @@
+FICS Format, client to server
+
+Author: Paul Salcido
+Date: 2012/02
+
+See the associated README.fics.format.server for a description as to why I'm typing this up, but whatever.
+
+When the xboard client (the current one I am testing) connects up to the fics server, it sends a bunch of
+information, and I'm working to find out what it all means.  First:
+
+alias $ @
+$set interface xboard 4.5.2
+$iset startpos 1
+$iset ms 1
+$iset lock 1
+$style 12
+set width 106
+
+I have noticed that set width happens whenever you change the telnet terminal size, so there is that.
+The next really important one that I know about is style 12, which tells the server to send the style
+that is described in README.fics.format.server.
+
+I'm working on learning the others, but I don't have a full understanding at this time.
+
+TODO: Finish filling this out.
