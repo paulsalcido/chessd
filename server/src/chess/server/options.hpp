@@ -13,41 +13,13 @@ namespace chess {
             options()
             { }
 
-            options(int port,
-                    int max_port_range,
-                    int min_port_range):
-                m_max_port_range(max_port_range),
-                m_min_port_range(min_port_range),
-                m_port(port),
-                m_backlog_limit(20),
-                m_log_directory(".")
-            { }
-
-            options(int port,
-                    int max_port_range,
-                    int min_port_range,
-                    std::string log_directory):
-                m_max_port_range(max_port_range),
-                m_min_port_range(min_port_range),
-                m_backlog_limit(20),
-                m_port(port),
-                m_log_directory(log_directory)
-            { }
-
             ~options() { }
 
-            int max_port_range(int i_max_port_range) {
-                return this->m_max_port_range = i_max_port_range;
+            std::string temp_directory(std::string i_temp_directory) {
+                return this->m_temp_directory = i_temp_directory;
             }
-            int max_port_range() {
-                return this->m_max_port_range;
-            }
-
-            int min_port_range(int i_min_port_range) {
-                return this->m_min_port_range = i_min_port_range;
-            }
-            int min_port_range() {
-                return this->m_min_port_range;
+            std::string temp_directory() {
+                return this->m_temp_directory;
             }
 
             std::string log_directory(std::string i_log_directory) {
@@ -78,13 +50,21 @@ namespace chess {
                 return this->m_port;
             }
 
+            std::string command_prompt(std::string i_command_prompt) {
+                return this->m_command_prompt = i_command_prompt;
+            }
+            std::string command_prompt() {
+                return this->m_command_prompt;
+            }
+
             int load_arguments(int argc, char **argv, chess::server::logger **logger) {
                 boost::program_options::options_description desc("Allowed Options");
                 desc.add_options()
                     ("port",boost::program_options::value<int>(),"Port to open for primary connections.")
-                    ("min-port-range",boost::program_options::value<int>(),"Ports to use for children connections.")
-                    ("max-port-range",boost::program_options::value<int>(),"Ports to use for children connections.")
+                    ("command-prompt",boost::program_options::value<std::string>(),"What the command prompt should start with.")
+                    ("backlog-limit",boost::program_options::value<int>(),"Backlog limit on main port.")
                     ("log-directory",boost::program_options::value<std::string>(),"Logging directory.")
+                    ("temp-directory",boost::program_options::value<std::string>(),"Temp files directory.")
                 ;
 
                 int errors = 0;
@@ -93,10 +73,17 @@ namespace chess {
                     boost::program_options::parse_command_line(argc,argv,desc)
                     ,vm);
                 boost::program_options::notify(vm);
+
                 if ( vm.count("log-directory") ) {
                     this->log_directory(vm["log-directory"].as<std::string>());
                 }
-            
+
+                if ( vm.count("temp-directory") ) {
+                    this->temp_directory(vm["temp-directory"].as<std::string>());
+                } else {
+                    this->temp_directory("/tmp/open-chess-server/");
+                }
+
                 if ( this->log_directory().length() > 0 ) {
                     *logger = new chess::server::logger(this->log_directory());
                 } else {
@@ -105,11 +92,11 @@ namespace chess {
             
                 (*logger)->log("Started logger");
  
-                if ( vm.count("backlog_limit") ) {
-                    this->backlog_limit(vm["backlog_limit"].as<int>());
+                if ( vm.count("backlog-limit") ) {
+                    this->backlog_limit(vm["backlog-limit"].as<int>());
                     (*logger)->log("backlog_limit retrieved " + boost::lexical_cast<std::string>(this->backlog_limit()));
                 } else {
-                    (*logger)->log("Missing option 'backlog_limit', setting to 20");
+                    (*logger)->log("Missing option 'backlog-limit', setting to 20");
                     this->backlog_limit(20);
                 }
  
@@ -120,32 +107,58 @@ namespace chess {
                     (*logger)->error("Missing required option 'port'");
                     errors++;
                 }
-            
-                if ( vm.count("min-port-range") ) {
-                    this->min_port_range(vm["min-port-range"].as<int>());
-                    (*logger)->log("Minimum port range set to " + boost::lexical_cast<std::string>(this->min_port_range()));
+ 
+                if ( vm.count("command-prompt") ) {
+                    this->command_prompt(vm["command-prompt"].as<std::string>());
+                    (*logger)->log("command-prompt retrieved " + this->command_prompt());
                 } else {
-                    (*logger)->error("Missing required option 'min-port-range'");
+                    (*logger)->error("Missing required option 'command-prompt'");
                     errors++;
                 }
             
-                if ( vm.count("max-port-range") ) {
-                    this->max_port_range(vm["max-port-range"].as<int>());
-                    (*logger)->log("Maximum port range set to " + boost::lexical_cast<std::string>(this->max_port_range()));
+                if ( this->log_directory().length() > 0 ) {
+                    *logger = new chess::server::logger(this->log_directory());
                 } else {
-                    (*logger)->error("Missing required option 'max-port-range'");
+                    *logger = new chess::server::logger();
+                }
+            
+                (*logger)->log("Started logger");
+ 
+                if ( vm.count("backlog-limit") ) {
+                    this->backlog_limit(vm["backlog-limit"].as<int>());
+                    (*logger)->log("backlog_limit retrieved " + boost::lexical_cast<std::string>(this->backlog_limit()));
+                } else {
+                    (*logger)->log("Missing option 'backlog-limit', setting to 20");
+                    this->backlog_limit(20);
+                }
+ 
+                if ( vm.count("port") ) {
+                    this->port(vm["port"].as<int>());
+                    (*logger)->log("port retrieved " + boost::lexical_cast<std::string>(this->port()));
+                } else {
+                    (*logger)->error("Missing required option 'port'");
                     errors++;
                 }
+ 
+                if ( vm.count("command-prompt") ) {
+                    this->command_prompt(vm["command-prompt"].as<std::string>());
+                    (*logger)->log("command-prompt retrieved " + this->command_prompt());
+                } else {
+                    (*logger)->error("Missing required option 'command-prompt'");
+                    errors++;
+                }
+
                 return this->option_errors(errors);
             }
 
             protected:
             int m_port;
-            int m_max_port_range;
-            int m_min_port_range;
             int m_option_errors;
             int m_backlog_limit;
+            int m_data_buffer_size;
             std::string m_log_directory;
+            std::string m_temp_directory;
+            std::string m_command_prompt;
         };
     }
 }
