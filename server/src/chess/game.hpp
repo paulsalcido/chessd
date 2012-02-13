@@ -24,9 +24,11 @@ namespace chess {
                 return m_owner;
             }
 
+            virtual bool test_move(std::string)=0; 
         protected:
             std::string m_owner;
             std::string m_opponent;
+            int m_game_number;
     };
 }
 

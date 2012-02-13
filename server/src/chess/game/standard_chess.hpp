@@ -82,7 +82,7 @@ namespace chess {
                     std::ostringstream stm;
                     stm << "<12> ";
                     for ( int i = 7 ; i >= 0 ; i-- ) {
-                        for ( int k = 7 ; k >= 0 ; k-- ) {
+                        for ( int k = 0 ; k < 8 ; k++ ) {
                             stm << piece_as_char(m_board[i][k]);
                         }
                         stm << " ";
@@ -175,20 +175,25 @@ namespace chess {
                     int final_row = -1;
                     int first_col = -1;
                     int final_col = -1;
-                    first_row = (int)move[1] - (int)'a';
-                    final_row = (int)move[3] - (int)'a';
-                    first_col = (int)move[2] - (int)'1';
-                    final_col = (int)move[4] - (int)'1';
+                    first_row = (int)move[0] - (int)'a';
+                    final_row = (int)move[2] - (int)'a';
+                    first_col = (int)move[1] - (int)'1';
+                    final_col = (int)move[3] - (int)'1';
+                    /*std::cout 
+                        << first_row << " "
+                        << first_col << " "
+                        << final_row << " "
+                        << final_col << " "
+                        << std::endl;*/
                     if ( first_row >= 0 && first_row < 8 &&
                             final_row >= 0 && final_row < 8 &&
                             first_col >= 0 && first_col < 8 &&
                             final_col >= 0 && final_col < 8 ) {
-                        int piece = m_board[first_row][first_col];
-                        if ( piece && (
-                                ( white_turn() && ( piece == _WB || piece == _WN || piece == _WQ || piece == _WR || piece == _WP || piece == _WK ) ) ||
-                                ( ! white_turn() && ( piece == _BB || piece == _BN || piece == _BQ || piece == _BR || piece == _BP || piece == _BK ) )  ) ) {
-                            m_board[final_row][final_col] = m_board[first_row][first_col];
-                            m_board[first_row][first_col] = _EM;
+                        int piece = m_board[first_col][first_row];
+                        //std::cout << piece << " " << piece_as_char(piece) << std::endl;
+                        if ( piece && ( ( white_turn() && piece > 0 ) || ( ! white_turn() && piece < 0 ) ) ) {
+                            m_board[final_col][final_row] = m_board[first_col][first_row];
+                            m_board[first_col][first_row] = _EM;
                             retval = true;
                             this->m_white_turn = ! this->m_white_turn;
                         }

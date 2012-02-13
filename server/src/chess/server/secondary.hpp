@@ -312,6 +312,7 @@ namespace chess {
                             pt.put("recipient",((chess::games::standard_chess*)(this->m_game))->opponent());
                             pt.put("player",this->m_player->name());
                             pt.put("action","game-refresh");
+                            pt.put("move",command);
                             this->_enqueue(chess::ptree::ptree_as_string(pt));
                         } else {
                             this->m_logger->log("Sending to notification queue: " + command);
@@ -495,6 +496,7 @@ namespace chess {
                             current->m_last_challenge->player().compare(current->m_player->name()) &&
                             current->m_game == NULL ) {
                         boost::property_tree::ptree pt;
+                        int game_id = time(NULL);
                         pt.put("recipient",current->m_last_challenge->player());
                         pt.put("player",current->m_player->name());
                         pt.put("action","accept");
@@ -502,6 +504,7 @@ namespace chess {
                         pt.put("increment",boost::lexical_cast<std::string>(current->m_last_challenge->increment()));
                         pt.put("game-type",current->m_last_challenge->game());
                         pt.put("owner",current->m_player->name());
+                        pt.put("game-id",boost::lexical_cast<std::string>(game_id));
                         current->_enqueue(chess::ptree::ptree_as_string(pt));
                         current->_send("You have attempted to accept the game from " + current->m_last_challenge->player() + "\n");
                         current->m_game = new chess::games::standard_chess();
@@ -739,7 +742,14 @@ namespace chess {
                     } else if ( current->m_player != NULL && current->m_last_challenge != NULL &&
                         current->m_game == NULL ) {
                         current->m_game = new chess::games::standard_chess();
-                        current->m_game->owner(pt.get<std::string>("owner"));
+                        ((chess::games::standard_chess*)(current->m_game))->setup(
+                            pt.get<std::string>("owner"),
+                            current->m_player->name(),
+                            pt.get<int>("game-id"),
+                            pt.get<int>("starting-time"),
+                            pt.get<int>("increment"));
+                        //current->m_game->owner(pt.get<std::string>("owner"));
+                        //current->m_game->opponent(pt.get<std::string>("player"));
                         current->m_game->opponent(pt.get<std::string>("player"));
                         current->_send("\nYour game has been accepted.\n");
                     } else if ( current->m_game != NULL ) {
@@ -812,6 +822,9 @@ namespace chess {
                         ,const boost::property_tree::ptree &pt) {
                     if ( current->m_player != NULL ) {
                         if ( ! pt.count("recipient") || ! pt.get<std::string>("recipient").compare(current->m_player->name()) ) {
+                            if ( pt.count("move") ) {
+                                ((chess::games::standard_chess*)(current->m_game))->test_move(pt.get<std::string>("move"));
+                            }
                             current->_send(pt.get<std::string>("message")+"\n");
                         }
                     }
