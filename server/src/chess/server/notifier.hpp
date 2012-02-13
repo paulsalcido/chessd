@@ -21,6 +21,7 @@
 
 #include <chess/server/logger.hpp>
 #include <chess/server/options.hpp>
+#include <chess/ptree.hpp>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -36,6 +37,8 @@
 #include <errno.h>
 
 #include <boost/lexical_cast.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
 
 namespace chess {
     namespace server {
@@ -125,50 +128,60 @@ namespace chess {
                         this->handle(str_buf);
                     }
                 }
+
+                void _remove_user(const boost::property_tree::ptree &pt) {
+                    std::map<std::string,chess::server::comm*>::iterator it = 
+                        m_comms.find(pt.get<std::string>("player"));
+                    m_comms.erase(it);
+                    this->_send_all(chess::ptree::ptree_as_string(pt));
+                }
+
+                void _add_user(const boost::property_tree::ptree &pt) {
+                    // Open a queue that is based on the name.
+                    // TODO: Create add player and remove player functions.
+                    std::string queuename = NOTIFIER_MESSAGE_QUEUE_NAME + pt.get<std::string>("player");
+                    this->m_logger->debug("Notifier building child queue: " + queuename);
+                    mqd_t mq = mq_open(queuename.c_str(),
+                        O_WRONLY | O_CREAT ,
+                        0644 ,
+                        &m_mq_attr );
+                    if ( mq == -1 ) {
+                        perror("mq_open");
+                        switch ( errno ) {
+                            case EEXIST: this->m_logger->debug("EEXIST"); break;
+                            case EACCES: this->m_logger->debug("EACCES"); break;
+                            case EINVAL: this->m_logger->debug("EINVAL"); break;
+                            case EMFILE: this->m_logger->debug("EMFILE"); break;
+                            case ENAMETOOLONG: this->m_logger->debug("ENAMETOOLONG"); break;
+                            case ENFILE: this->m_logger->debug("ENFILE"); break;
+                            case ENOENT: this->m_logger->debug("ENOENT"); break;
+                            case ENOMEM: this->m_logger->debug("ENOMEM"); break;
+                            case ENOSPC: this->m_logger->debug("ENOSPC"); break;
+                        }
+                    }
+                    m_comms[pt.get<std::string>("player")] = new chess::server::comm(pt.get<std::string>("player"),mq);
+                    this->_send_all(chess::ptree::ptree_as_string(pt));
+                }
                 
                 void handle(std::string buf) {
                     std::vector<std::string> notification;
                     std::string obuf = buf;
-                    this->m_logger->debug("Handling " + buf);
-                    while ( buf.length() ) {
-                        int found = buf.find(":");
-                        if ( found != std::string::npos) {
-                            notification.push_back(buf.substr(0,found));
-                            this->m_logger->debug("Pushing: " + buf.substr(0,found) + "; buf now: " + buf.substr(found+1));
-                            buf = buf.substr(found+1);
+                    boost::property_tree::ptree pt;
+                    chess::ptree::fill_ptree(buf,pt);
+                    if ( pt.count("action") && ! pt.get<std::string>("action").compare("login") ) {
+                        this->_add_user(pt);
+                    } else if ( pt.count("action") && ! pt.get<std::string>("action").compare("logout") ) {
+                        this->_remove_user(pt);
+                    } else if ( pt.count("recipient") ) {
+                        bool retval = this->_send(pt.get<std::string>("recipient"),pt.get<std::string>("player"),obuf);
+                        if ( ! retval ) {
+                            pt.put("status","failure");
                         } else {
-                            notification.push_back(buf);
-                            this->m_logger->debug("Pushing: " + buf);
-                            buf = "";
+                            pt.put("status","success");
                         }
-                    }
-                    this->m_logger->debug("Trying on: " + notification[0]);
-                    if ( ! notification[0].compare("<login>") ) {
-                        // Open a queue that is based on the name.
-                        // TODO: Create add player and remove player functions.
-                        std::string queuename = NOTIFIER_MESSAGE_QUEUE_NAME + notification[1];
-                        this->m_logger->debug("Notifier building child queue: " + queuename);
-                        mqd_t mq = mq_open(queuename.c_str(),
-                            O_WRONLY | O_CREAT ,
-                            0644 ,
-                            &m_mq_attr );
-                        if ( mq == -1 ) {
-                            perror("mq_open");
-                            switch ( errno ) {
-                                case EEXIST: this->m_logger->debug("EEXIST"); break;
-                                case EACCES: this->m_logger->debug("EACCES"); break;
-                                case EINVAL: this->m_logger->debug("EINVAL"); break;
-                                case EMFILE: this->m_logger->debug("EMFILE"); break;
-                                case ENAMETOOLONG: this->m_logger->debug("ENAMETOOLONG"); break;
-                                case ENFILE: this->m_logger->debug("ENFILE"); break;
-                                case ENOENT: this->m_logger->debug("ENOENT"); break;
-                                case ENOMEM: this->m_logger->debug("ENOMEM"); break;
-                                case ENOSPC: this->m_logger->debug("ENOSPC"); break;
-                            }
-                        }
-                        m_comms[notification[1]] = new chess::server::comm(notification[1],mq);
-                        std::string login_buffer = notification[1] + " has logged in.";
-                        this->_send_all(login_buffer);
+                        this->_send(pt.get<std::string>("player")
+                            ,pt.get<std::string>("player"),
+                            chess::ptree::ptree_as_string(pt));
                     } else {
                         this->_send_all(obuf);
                     }
@@ -180,6 +193,15 @@ namespace chess {
                         this->m_logger->debug("Sending data over queue: " + buffer);
                         mq_send(it->second->queue(),buffer.c_str(),buffer.length(),0);
                     }
+                }
+                
+                bool _send(std::string player,std::string from,std::string buffer) {
+                    bool retval = false;
+                    if ( m_comms.count(player) ) {
+                        mq_send(m_comms[player]->queue(),buffer.c_str(),buffer.length(),0);
+                        retval = true;
+                    }
+                    return retval;
                 }
 
                 chess::server::logger *m_logger;
