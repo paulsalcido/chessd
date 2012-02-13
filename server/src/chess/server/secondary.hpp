@@ -210,6 +210,7 @@ namespace chess {
             protected:
                 void _login() {
                     while ( m_player == NULL ) {
+                        memset(m_buf,0,DATA_BUFFER_SIZE);
                         this->_send("Login --> ");
                         int read_amount = recv(m_file_desc,m_buf,DATA_BUFFER_SIZE,0);
                         std::string username = m_buf;
@@ -825,7 +826,7 @@ namespace chess {
                             if ( pt.count("move") ) {
                                 ((chess::games::standard_chess*)(current->m_game))->test_move(pt.get<std::string>("move"));
                             }
-                            current->_send(pt.get<std::string>("message")+"\n");
+                            current->_send("\n"+pt.get<std::string>("message")+"\n");
                         }
                     }
                 }
