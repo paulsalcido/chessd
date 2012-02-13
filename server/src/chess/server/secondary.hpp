@@ -304,12 +304,23 @@ namespace chess {
                         (*(*m_commands)[true_command])(this,&args,obuf);
                         //this->_send_command_prompt();
                     } else {
-                        this->m_logger->log("Sending to notification queue: " + command);
-                        boost::property_tree::ptree pt;
-                        pt.put("message",command);
-                        pt.put("action","unknown");
-                        pt.put("player",this->m_player->name());
-                        this->_enqueue(chess::ptree::ptree_as_string(pt));
+                        if ( this->m_game != NULL && ((chess::games::standard_chess*)(this->m_game))->test_move(command) ) {
+                            this->_send(((chess::games::standard_chess*)(this->m_game))->status_style_12(this->m_player->name()) + "\n");
+                            /* TODO: Put this in function */
+                            boost::property_tree::ptree pt;
+                            pt.put("message",((chess::games::standard_chess*)(this->m_game))->status_style_12(this->m_game->opponent()));
+                            pt.put("recipient",((chess::games::standard_chess*)(this->m_game))->opponent());
+                            pt.put("player",this->m_player->name());
+                            pt.put("action","game-refresh");
+                            this->_enqueue(chess::ptree::ptree_as_string(pt));
+                        } else {
+                            this->m_logger->log("Sending to notification queue: " + command);
+                            boost::property_tree::ptree pt;
+                            pt.put("message",command);
+                            pt.put("action","unknown");
+                            pt.put("player",this->m_player->name());
+                            this->_enqueue(chess::ptree::ptree_as_string(pt));
+                        }
                     }
                 }
 

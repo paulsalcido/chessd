@@ -168,6 +168,34 @@ namespace chess {
                     return retval;
                 }
 
+                bool test_move(std::string move) {
+                    // First, we need to translate to normal translation.
+                    bool retval = false;
+                    int first_row = -1;
+                    int final_row = -1;
+                    int first_col = -1;
+                    int final_col = -1;
+                    first_row = (int)move[1] - (int)'a';
+                    final_row = (int)move[3] - (int)'a';
+                    first_col = (int)move[2] - (int)'1';
+                    final_col = (int)move[4] - (int)'1';
+                    if ( first_row >= 0 && first_row < 8 &&
+                            final_row >= 0 && final_row < 8 &&
+                            first_col >= 0 && first_col < 8 &&
+                            final_col >= 0 && final_col < 8 ) {
+                        int piece = m_board[first_row][first_col];
+                        if ( piece && (
+                                ( white_turn() && ( piece == _WB || piece == _WN || piece == _WQ || piece == _WR || piece == _WP || piece == _WK ) ) ||
+                                ( ! white_turn() && ( piece == _BB || piece == _BN || piece == _BQ || piece == _BR || piece == _BP || piece == _BK ) )  ) ) {
+                            m_board[final_row][final_col] = m_board[first_row][first_col];
+                            m_board[first_row][first_col] = _EM;
+                            retval = true;
+                            this->m_white_turn = ! this->m_white_turn;
+                        }
+                    }
+                    return retval;
+                }
+
             protected:
 
                 std::string m_white;
