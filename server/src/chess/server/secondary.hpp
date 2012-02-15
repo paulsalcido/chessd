@@ -564,6 +564,7 @@ namespace chess {
                         pt.put<std::string>("opponent",current->m_game->opponent());
                         pt.put<std::string>("player",current->m_player->name());
                         pt.put<std::string>("action","resign");
+                        pt.put<std::string>("game-id",boost::lexical_cast<std::string>(current->m_game->game_number()));
                         current->_enqueue(chess::ptree::ptree_as_string(pt));
                         delete current->m_game;
                         current->m_game = NULL;
@@ -789,10 +790,10 @@ namespace chess {
                     if ( current->m_player!= NULL ) {
                         if ( current->m_game != NULL && ! pt.get<std::string>("opponent").compare(current->m_player->name()) ) {
                             /* My opponent has resigned */
-                            current->_send("\n{Game n (" + current->m_player->name() + " vs. " + pt.get<std::string>("player") + ") " + pt.get<std::string>("player") + " resigned.} 1-0\n");
+                            current->_send("\n{Game " + pt.get<std::string>("game-id") + " (" + current->m_player->name() + " vs. " + pt.get<std::string>("player") + ") " + pt.get<std::string>("player") + " resigned.} 1-0\n");
                         } else if ( ! pt.get<std::string>("player").compare(current->m_player->name()) ) {
                             /* I have resigned */
-                            current->_send("\n{Game n (" + pt.get<std::string>("player") + " vs. " + current->m_player->name() + ") " + pt.get<std::string>("player") + " resigned.} 1-0\n");
+                            current->_send("\n{Game " + pt.get<std::string>("game-id") + " (" + pt.get<std::string>("player") + " vs. " + current->m_player->name() + ") " + pt.get<std::string>("player") + " resigned.} 1-0\n");
                         }
                     }
                 }

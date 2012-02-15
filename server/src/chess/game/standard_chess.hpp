@@ -209,7 +209,6 @@ namespace chess {
                 int m_increment;
                 int m_delay;
                 bool m_white_turn;
-                int m_game_number;
 
                 int m_board[8][8];
         };

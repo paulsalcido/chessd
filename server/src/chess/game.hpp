@@ -23,6 +23,12 @@ namespace chess {
             std::string owner() {
                 return m_owner;
             }
+            int game_number(int val) {
+                return m_game_number = val;
+            }
+            int game_number() {
+                return m_game_number;
+            }
 
             virtual bool test_move(std::string)=0; 
         protected:
