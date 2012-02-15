@@ -47,6 +47,7 @@ namespace chess {
                     m_starting_time = starting_time;
                     m_increment = increment;
                     m_delay = delay;
+                    m_counter = 1;
 
                     m_white_turn = true;
 
@@ -112,7 +113,7 @@ namespace chess {
                     } else if ( ! player.compare(m_white) || ! player.compare(m_black) ) {
                         stm << " " << -1; 
                     } else {
-                        stm << " " << -2;
+                        stm << " " << 0;
                     }
                     stm << " " << m_starting_time * 60;
                     stm << " " << m_increment;
@@ -141,8 +142,16 @@ namespace chess {
                     return m_starting_time * 60 * 1000;
                 }
 
+                const std::string black() {
+                    return m_black;
+                }
+                
+                const std::string white() {
+                    return m_white;
+                }
+
                 int move_number() {
-                    return 1;
+                    return m_counter;
                 }
 
                 bool white_turn() {
@@ -195,8 +204,26 @@ namespace chess {
                             m_board[final_col][final_row] = m_board[first_col][first_row];
                             m_board[first_col][first_row] = _EM;
                             retval = true;
+                            m_move_list.push_back(move);
                             this->m_white_turn = ! this->m_white_turn;
+                            if ( this->m_white_turn ) {
+                                m_counter++;
+                            }
                         }
+                    }
+                    return retval;
+                }
+
+                std::string move_list() {
+                    std::vector<std::string>::iterator it = m_move_list.begin();
+                    std::string retval = "";
+                    int i = 0;
+                    for ( ; it != m_move_list.end() ; it++ ) {
+                        if ( i > 0 ) {
+                            retval += " ";
+                        }
+                        i++;
+                        retval += (*it);
                     }
                     return retval;
                 }
@@ -205,9 +232,11 @@ namespace chess {
 
                 std::string m_white;
                 std::string m_black;
+                std::vector<std::string> m_move_list;
                 int m_starting_time;
                 int m_increment;
                 int m_delay;
+                int m_counter;
                 bool m_white_turn;
 
                 int m_board[8][8];

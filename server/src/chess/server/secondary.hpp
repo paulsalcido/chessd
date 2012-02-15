@@ -313,6 +313,7 @@ namespace chess {
                             pt.put("recipient",((chess::games::standard_chess*)(this->m_game))->opponent());
                             pt.put("player",this->m_player->name());
                             pt.put("action","game-refresh");
+                            pt.put("game-id",this->m_game->game_number());
                             pt.put("move",command);
                             this->_enqueue(chess::ptree::ptree_as_string(pt));
                         } else {
@@ -397,6 +398,7 @@ namespace chess {
                     (*m_commands)["cancel"] = &_command_sm_cancel;
                     (*m_commands)["resign"] = &_command_sm_resign;
                     (*m_commands)["status"] = &_command_sm_status;
+                    (*m_commands)["examine"] = &_command_sm_examine;
 
                     m_actions = new std::map<std::string,void (*)(chess::server::secondary*, const boost::property_tree::ptree &)>;
                     (*m_actions)["match"] = &_handle_action_match;
@@ -408,6 +410,8 @@ namespace chess {
                     (*m_actions)["resign"] = &_handle_action_resign;
                     (*m_actions)["logout"] = &_handle_action_logout;
                     (*m_actions)["game-refresh"] = &_handle_action_game_refresh;
+                    (*m_actions)["examine"] = &_handle_action_examine;
+                    (*m_actions)["accept-examine"] = &_handle_action_accept_examine;
                 }
 
                 chess::server::logger *m_logger;
@@ -507,7 +511,7 @@ namespace chess {
                         pt.put("owner",current->m_player->name());
                         pt.put("game-id",boost::lexical_cast<std::string>(game_id));
                         current->_enqueue(chess::ptree::ptree_as_string(pt));
-                        current->_send("You have attempted to accept the game from " + current->m_last_challenge->player() + "\n");
+                        current->_send("You have attempted to accept the game (id: "+boost::lexical_cast<std::string>(game_id)+")from " + current->m_last_challenge->player() + "\n");
                         current->m_game = new chess::games::standard_chess();
                         current->m_game->opponent(current->m_last_challenge->player());
                         current->m_game->owner(current->m_player->name());
@@ -522,6 +526,7 @@ namespace chess {
                         current->m_logger->debug("After setting up the chess game.");
                         boost::property_tree::ptree pt2;
                         pt2.put<std::string>("action","game-refresh");
+                        pt2.put<int>("game-id",current->m_game->game_number());
                         pt2.put<std::string>("recipient",current->m_game->opponent());
                         pt2.put<std::string>("message",((chess::games::standard_chess*)(current->m_game))->status_style_12(current->m_game->opponent()));
                         pt2.put<std::string>("player",current->m_player->name());
@@ -565,9 +570,9 @@ namespace chess {
                         pt.put<std::string>("player",current->m_player->name());
                         pt.put<std::string>("action","resign");
                         pt.put<std::string>("game-id",boost::lexical_cast<std::string>(current->m_game->game_number()));
+                        pt.put<std::string>("black",((chess::games::standard_chess*)(current->m_game))->black());
+                        pt.put<std::string>("white",((chess::games::standard_chess*)(current->m_game))->white());
                         current->_enqueue(chess::ptree::ptree_as_string(pt));
-                        delete current->m_game;
-                        current->m_game = NULL;
                     } else {
                         current->_send("Error: You do not have a game to resign.");
                     }
@@ -638,6 +643,21 @@ namespace chess {
                         pt.put("player",current->m_player->name());
                         pt.put("message",obuf);
                         current->_enqueue(chess::ptree::ptree_as_string(pt));
+                    }
+                };
+
+                static void _command_sm_examine(
+                        chess::server::secondary* current
+                        ,std::vector<std::string>* args 
+                        ,std::string obuf) {
+                    if ( current->m_player != NULL && args->size() > 0 ) {
+                        boost::property_tree::ptree pt;
+                        pt.put("action","examine");
+                        pt.put("player",current->m_player->name());
+                        pt.put("game-id",(*args)[0]);
+                        current->_enqueue(chess::ptree::ptree_as_string(pt));
+                    } else {
+                        current->_send("Error: usage: examine <game-id>");
                     }
                 };
 
@@ -787,14 +807,14 @@ namespace chess {
                 static void _handle_action_resign(
                         chess::server::secondary *current
                         ,const boost::property_tree::ptree &pt) {
-                    if ( current->m_player!= NULL ) {
-                        if ( current->m_game != NULL && ! pt.get<std::string>("opponent").compare(current->m_player->name()) ) {
-                            /* My opponent has resigned */
-                            current->_send("\n{Game " + pt.get<std::string>("game-id") + " (" + current->m_player->name() + " vs. " + pt.get<std::string>("player") + ") " + pt.get<std::string>("player") + " resigned.} 1-0\n");
-                        } else if ( ! pt.get<std::string>("player").compare(current->m_player->name()) ) {
-                            /* I have resigned */
-                            current->_send("\n{Game " + pt.get<std::string>("game-id") + " (" + pt.get<std::string>("player") + " vs. " + current->m_player->name() + ") " + pt.get<std::string>("player") + " resigned.} 1-0\n");
+                    if ( current->m_player != NULL && current->m_game->game_number() == pt.get<int>("game-id") ) {
+                        std::string result = "0-1";
+                        if ( current->m_game != NULL && ! ((chess::games::standard_chess*)(current->m_game))->black().compare(pt.get<std::string>("player")) ) {
+                            result = "1-0";
                         }
+                        current->_send("\n{Game " + pt.get<std::string>("game-id") + " (" + pt.get<std::string>("white")  + " vs. " + pt.get<std::string>("black") + ") " + pt.get<std::string>("player") + " resigned.} " + result + "\n");
+                        delete current->m_game;
+                        current->m_game = NULL;
                     }
                 }
 
@@ -818,19 +838,72 @@ namespace chess {
                         current->_send("\nLast challenge is closed because of logout or disconnect.\n");
                     }
                 }
-                
+
                 static void _handle_action_game_refresh(
                         chess::server::secondary *current
                         ,const boost::property_tree::ptree &pt) {
-                    if ( current->m_player != NULL ) {
-                        if ( ! pt.count("recipient") || ! pt.get<std::string>("recipient").compare(current->m_player->name()) ) {
+                    if ( current->m_player != NULL && current->m_game != NULL ) {
+                        if ( pt.get<int>("game-id") == current->m_game->game_number() ) {
                             if ( pt.count("move") ) {
                                 ((chess::games::standard_chess*)(current->m_game))->test_move(pt.get<std::string>("move"));
-                            }
-                            current->_send("\n"+pt.get<std::string>("message")+"\n");
+                            } 
+                            current->_send(((chess::games::standard_chess*)(current->m_game))->status_style_12(current->m_player->name()) + "\n");
                         }
                     }
                 }
+
+                static void _handle_action_accept_examine(
+                        chess::server::secondary *current
+                        ,const boost::property_tree::ptree &pt) {
+                    bool success = false;
+                    if ( current->m_game != NULL && 
+                        ! pt.get<std::string>("recipient").compare(current->m_player->name()) &&
+                        current->m_player->name().compare(((chess::games::standard_chess*)(current->m_game))->black()) &&
+                        current->m_player->name().compare(((chess::games::standard_chess*)(current->m_game))->white()) ) {
+                        delete current->m_game;
+                        current->m_game = NULL;
+                        success = true;
+                    } else if ( current->m_game == NULL ) {
+                        success = true;
+                    }
+                    if ( success ) {
+                        current->m_game = new chess::games::standard_chess();
+                        current->m_logger->debug("<" + current->m_player->name() + "> Accepting game examine.");
+                        ((chess::games::standard_chess*)(current->m_game))->setup(
+                            pt.get<std::string>("white"),
+                            pt.get<std::string>("black"),
+                            pt.get<int>("game-id"),
+                            50,
+                            50);
+                        std::istringstream is2(pt.get<std::string>("move-list"));
+                        std::string test1;
+                        is2 >> test1;
+                        while ( test1.length() ) {
+                            ((chess::games::standard_chess*)(current->m_game))->test_move(test1);
+                            current->m_logger->debug("<" + current->m_player->name() + "> doing move: " + test1);
+                            is2 >> test1;
+                        }
+                        current->_send(((chess::games::standard_chess*)(current->m_game))->status_style_12(current->m_player->name()) + "\n");
+                    }
+                }
+
+                static void _handle_action_examine(
+                        chess::server::secondary *current
+                        ,const boost::property_tree::ptree &pt) {
+                    if ( current->m_game != NULL && pt.get<int>("game-id") == current->m_game->game_number() && ! current->m_game->owner().compare(current->m_player->name()) ) {
+                        boost::property_tree::ptree spt;
+                        spt.put<std::string>("player",current->m_player->name());
+                        spt.put<std::string>("action","accept-examine");
+                        spt.put<std::string>("recipient",pt.get<std::string>("player"));
+                        spt.put<int>("game-id",((chess::games::standard_chess*)(current->m_game))->game_number());
+                        spt.put<std::string>("move-list",((chess::games::standard_chess*)(current->m_game))->move_list());
+                        spt.put<std::string>("black",((chess::games::standard_chess*)(current->m_game))->black());
+                        spt.put<std::string>("white",((chess::games::standard_chess*)(current->m_game))->white());
+                        current->_enqueue(chess::ptree::ptree_as_string(spt));
+                        current->_send("\nThe player " + pt.get<std::string>("player") + " is examining your game.\n");
+                    }
+                }
+
         };
     }
 }
