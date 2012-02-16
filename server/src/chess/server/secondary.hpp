@@ -310,7 +310,6 @@ namespace chess {
                             /* TODO: Put this in function */
                             boost::property_tree::ptree pt;
                             pt.put("message",((chess::games::standard_chess*)(this->m_game))->status_style_12(this->m_game->opponent()));
-                            pt.put("recipient",((chess::games::standard_chess*)(this->m_game))->opponent());
                             pt.put("player",this->m_player->name());
                             pt.put("action","game-refresh");
                             pt.put("game-id",this->m_game->game_number());
@@ -527,7 +526,6 @@ namespace chess {
                         boost::property_tree::ptree pt2;
                         pt2.put<std::string>("action","game-refresh");
                         pt2.put<int>("game-id",current->m_game->game_number());
-                        pt2.put<std::string>("recipient",current->m_game->opponent());
                         pt2.put<std::string>("message",((chess::games::standard_chess*)(current->m_game))->status_style_12(current->m_game->opponent()));
                         pt2.put<std::string>("player",current->m_player->name());
                         current->_enqueue(chess::ptree::ptree_as_string(pt2));
