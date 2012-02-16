@@ -481,14 +481,14 @@ namespace chess {
                         chess::server::secondary* current
                         ,std::vector<std::string>* args
                         ,std::string obuf) {
-                    if ( current->m_draw_request == NULL ) {
+                    if ( current->m_draw_request == NULL && current->m_game != NULL ) {
                         boost::property_tree::ptree pt;
                         pt.put("action","draw-request");
                         pt.put("player",current->player_name());
                         pt.put("recipient",current->m_game->opponent());
                         current->_enqueue(chess::ptree::ptree_as_string(pt));
                         current->_send("You have offered draw to your opponent.");
-                    } else if ( current->m_draw_request->player().compare(current->player_name()) ) {
+                    } else if ( current->m_draw_request != NULL && current->m_draw_request->player().compare(current->player_name()) ) {
                         boost::property_tree::ptree pt;
                         pt.put("action","draw-accept");
                         pt.put("player",current->player_name());
