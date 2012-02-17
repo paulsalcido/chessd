@@ -32,7 +32,7 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-bin_PROGRAMS = chessserver$(EXEEXT)
+bin_PROGRAMS = chessserver$(EXEEXT) connect_pq$(EXEEXT)
 subdir = src
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -48,6 +48,9 @@ PROGRAMS = $(bin_PROGRAMS)
 am_chessserver_OBJECTS = chessserver.$(OBJEXT)
 chessserver_OBJECTS = $(am_chessserver_OBJECTS)
 chessserver_LDADD = $(LDADD)
+am_connect_pq_OBJECTS = connect_pq.$(OBJEXT)
+connect_pq_OBJECTS = $(am_connect_pq_OBJECTS)
+connect_pq_LDADD = $(LDADD)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -57,8 +60,8 @@ CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
 CXXLD = $(CXX)
 CXXLINK = $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
 	-o $@
-SOURCES = $(chessserver_SOURCES)
-DIST_SOURCES = $(chessserver_SOURCES)
+SOURCES = $(chessserver_SOURCES) $(connect_pq_SOURCES)
+DIST_SOURCES = $(chessserver_SOURCES) $(connect_pq_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -89,7 +92,7 @@ INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
-LIBS = -lboost_program_options-mt -lboost_date_time-mt -lrt
+LIBS = -lboost_program_options-mt -lboost_date_time-mt -lrt -lpq
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MKDIR_P = @MKDIR_P@
@@ -151,6 +154,7 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AM_CFLAGS = --pedantic -Wall --std=c99 -O2
 chessserver_SOURCES = chessserver.cpp
+connect_pq_SOURCES = connect_pq.cpp
 all: all-am
 
 .SUFFIXES:
@@ -225,6 +229,9 @@ clean-binPROGRAMS:
 chessserver$(EXEEXT): $(chessserver_OBJECTS) $(chessserver_DEPENDENCIES) 
 	@rm -f chessserver$(EXEEXT)
 	$(CXXLINK) $(chessserver_OBJECTS) $(chessserver_LDADD) $(LIBS)
+connect_pq$(EXEEXT): $(connect_pq_OBJECTS) $(connect_pq_DEPENDENCIES) 
+	@rm -f connect_pq$(EXEEXT)
+	$(CXXLINK) $(connect_pq_OBJECTS) $(connect_pq_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -233,6 +240,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/chessserver.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/connect_pq.Po@am__quote@
 
 .cpp.o:
 @am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
