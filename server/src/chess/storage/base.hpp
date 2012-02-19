@@ -33,6 +33,10 @@ namespace chess {
             public:
                 player() {
                 }
+                player(std::string short_name,std::string long_name,std::string id) :
+                    m_short_name(short_name),m_long_name(long_name),m_id(id)
+                {
+                }
                 ~player() {
                 }
 

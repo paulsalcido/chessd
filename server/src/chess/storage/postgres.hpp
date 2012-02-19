@@ -55,9 +55,29 @@ namespace chess {
                     return success;
                 }
 
-                virtual chess::storage::player* login(const std::string&,const std::string&) {
-                    return NULL;
+                virtual chess::storage::player* login(const std::string& name,const std::string& pass) {
+                    chess::storage::player* mp = NULL;
+                    /* Make this so that it's not plain text. */
+                    char *args[2];
+                    args[0] = new char[name.length()+1];
+                    strcpy(args[0],name.c_str());
+                    args[1] = new char[pass.length()+1];
+                    strcpy(args[1],pass.c_str());
+                    PGresult* res;
+                    res=PQexecParams(m_connection,
+                        "select id,username,fullname,created from player where username=$1 and password=md5($2 || salt)",
+                        2,NULL,args,NULL,NULL,0);
+                    if ( PQntuples(res) ) {
+                        // Successful login.
+                        std::string id = PQgetvalue(res,0,0);
+                        std::string uname = PQgetvalue(res,0,1);
+                        std::string dname = PQgetvalue(res,0,2);
+                        mp = new chess::storage::player(uname,dname,id);
+                    }
+                    PQclear(res);
+                    return mp;
                 }
+
                 virtual chess::storage::player* get_player(std::map<std::string,std::string>) {
                     return NULL;
                 }

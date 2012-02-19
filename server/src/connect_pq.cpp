@@ -13,6 +13,8 @@ int main(int argc, char** argv) {
         ("host",boost::program_options::value<std::string>(),"postgres host.")
         ("user",boost::program_options::value<std::string>(),"postgres user.")
         ("pass",boost::program_options::value<std::string>(),"postgres pass.")
+        ("username",boost::program_options::value<std::string>(),"postgres pass.")
+        ("userpass",boost::program_options::value<std::string>(),"postgres pass.")
     ;
     boost::program_options::variables_map vm;
     boost::program_options::store(boost::program_options::parse_command_line(argc,argv,desc),vm);
@@ -46,6 +48,12 @@ int main(int argc, char** argv) {
     chess::storage::base* conn = new chess::storage::postgres();
     if ( conn->connect(login_options) ) {
         std::cout << "great!" << std::endl;
+        chess::storage::player* mp = conn->login(vm["username"].as<std::string>(),vm["userpass"].as<std::string>());
+        if ( mp != NULL ) {
+            std::cout << "Login success!" << std::endl;
+        } else {
+            std::cout << "Login failure!" << std::endl;
+        }
         conn->disconnect();
     } else {
         std::cout << "poo!" << std::endl;
