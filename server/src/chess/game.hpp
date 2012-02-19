@@ -57,6 +57,8 @@ namespace chess {
              * arguments
              */
             virtual std::string status(const std::string&,const std::string&)=0;
+
+            virtual std::string game_name() = 0;
         protected:
             std::string m_owner;
             std::string m_opponent;

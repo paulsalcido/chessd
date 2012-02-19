@@ -1,9 +1,10 @@
-#include <postgresql/libpq-fe.h>
-
 #include <boost/program_options.hpp>
 #include <boost/lexical_cast.hpp>
 #include <iostream>
 #include <string>
+
+#include <chess/storage/base.hpp>
+#include <chess/storage/postgres.hpp>
 
 int main(int argc, char** argv) {
     boost::program_options::options_description desc("Allowed options");
@@ -16,33 +17,48 @@ int main(int argc, char** argv) {
     boost::program_options::variables_map vm;
     boost::program_options::store(boost::program_options::parse_command_line(argc,argv,desc),vm);
     boost::program_options::notify(vm);
+    std::map<std::string,std::string> login_options;
     int errors = 0;
     if ( ! vm.count("host") ) {
         std::cerr << "host required." << std::endl;
         errors++;
     } else {
-        std::cout << vm["host"].as<std::string>() << std::endl;
+        login_options["host"] = vm["host"].as<std::string>();
     }
     if ( ! vm.count("user") ) {
         std::cerr << "user required." << std::endl;
         errors++;
+    } else {
+        login_options["user"] = vm["user"].as<std::string>();
     }
     if ( ! vm.count("pass") ) {
         std::cerr << "pass required." << std::endl;
         errors++;
+    } else {
+        login_options["password"] = vm["pass"].as<std::string>();
     }
     if ( ! vm.count("port") ) {
         std::cerr << "port required." << std::endl;
         errors++;
+    } else {
+        login_options["port"] = boost::lexical_cast<std::string>(vm["port"].as<int>());
     }
-    PGconn* conn;
-    PGresult* res;
+    chess::storage::base* conn = new chess::storage::postgres();
+    if ( conn->connect(login_options) ) {
+        std::cout << "great!" << std::endl;
+        conn->disconnect();
+    } else {
+        std::cout << "poo!" << std::endl;
+    }
+    return 0;
+    //PGconn* conn;
+    //PGresult* res;
     /*std::string conninfo = "host=" + vm["host"].as<std::string>() 
         + " user=" + vm["user"].as<std::string>()
         + " password=" + vm["pass"].as<std::string>()
         + " port=" + boost::lexical_cast<std::string>(vm["port"].as<int>());*/
     //conn = PQconnectdb(conninfo.c_str());
-    const char *keys[5];
+    /*const char *keys[5];
     const char *values[5];
     keys[0] = "host";
     keys[1] = "password";
@@ -65,5 +81,5 @@ int main(int argc, char** argv) {
     std::cout << PQntuples(res) << ", " << PQnfields(res) << std::endl;
     PQclear(res);
     PQfinish(conn);
-    exit(0);
+    exit(0);*/
 }

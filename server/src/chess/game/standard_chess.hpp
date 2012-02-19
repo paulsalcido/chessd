@@ -129,6 +129,10 @@ namespace chess {
                     return retval;
                 }
 
+                virtual std::string game_name() {
+                    return "standard_chess";
+                }
+
                 virtual bool test_move(const std::string &player,const std::string &move) {
                     // First, we need to translate to normal translation.
                     bool retval = false;
