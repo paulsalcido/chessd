@@ -56,6 +56,19 @@ namespace chess {
             std::string command_prompt() {
                 return this->m_command_prompt;
             }
+            /* TODO: Make these command line options */
+            std::string storage_port() {
+                return "5432";
+            }
+            std::string storage_password() {
+                return "game_serve";
+            }
+            std::string storage_user() {
+                return "game_serve";
+            }
+            std::string storage_host() {
+                return "localhost";
+            }
 
             int load_arguments(int argc, char **argv, chess::server::logger **logger) {
                 boost::program_options::options_description desc("Allowed Options");

@@ -3,6 +3,7 @@
 
 #include <chess/server/logger.hpp>
 #include <chess/server/notifier.hpp>
+#include <chess/storage/postgres.hpp>
 #include <chess/game.hpp>
 
 #include <chess/game/standard_chess.hpp>
@@ -158,10 +159,16 @@ namespace chess {
                     m_game = NULL;
                     m_needs_prompt = false;
                     m_draw_request = NULL;
+                    m_storage = NULL;
+                    m_storage_player = NULL;
                 }
                 ~secondary() {
+                    this->_shutdown();
                     if ( m_buf != NULL ) {
                         delete m_buf;
+                    }
+                    if ( m_storage_player != NULL ) {
+                        delete m_storage_player;
                     }
                     if ( m_commands != NULL ) {
                         delete m_commands;
@@ -178,6 +185,18 @@ namespace chess {
                         m_state = new chess::server::client_state();
 
                         m_buf = new char[DATA_BUFFER_SIZE];
+                        /* TODO, make this pluginnable... */
+                        std::map<std::string,std::string> lv;
+                        lv["host"] = this->m_options->storage_host();
+                        lv["port"] = this->m_options->storage_port();
+                        lv["user"] = this->m_options->storage_user();
+                        lv["password"] = this->m_options->storage_password();
+                        m_storage = new chess::storage::postgres();
+                        bool success = m_storage->connect(lv);
+                        if ( ! success ) {
+                            this->m_logger->error("Couldn't connect to storage container.");
+                            exit(1);
+                        }
                         this->_setup_message_queue();
 
                         this->_login();
@@ -233,19 +252,59 @@ namespace chess {
                 }
 
                 void _login() {
+                    struct timeval tmptv;
+                    fd_set tmpfdset;
+                    FD_ZERO(&tmpfdset);
+                    FD_SET(m_file_desc,&tmpfdset);
                     while ( m_player == NULL ) {
+                        this->_send("Trying to login to psalcido-ics\n\n");
+                        this->_send("login:\n");
                         memset(m_buf,0,DATA_BUFFER_SIZE);
-                        this->_send("Login --> ");
                         int read_amount = recv(m_file_desc,m_buf,DATA_BUFFER_SIZE,0);
+                        if ( read_amount == 0 ) { 
+                            this->_shutdown();
+                        }
                         std::string username = m_buf;
                         _chomp(username);
-                        if ( username.length() ) {
-                            this->_send("Logging you in as \"" + username + "\";\n");
+                        this->_send("\nYou are trying to login as \""+username+"\"\nIf this is you, try your password, otherwise, just press return.\n\npassword:\n");
+                        memset(m_buf,0,DATA_BUFFER_SIZE);
+                        read_amount = recv(m_file_desc,m_buf,DATA_BUFFER_SIZE,0);
+                        std::string password = m_buf;
+                        this->m_logger->debug("Got login: " + username + ", " + password);
+                        _chomp(password);
+                        if ( username.length() && password.length() ) {
+                            //this->_send("Logging you in as \"" + username + "\";\n");
+                            m_storage_player = m_storage->login(username,password);
+                            if ( m_storage_player != NULL ) {
+                                m_player = new chess::server::player(m_storage_player->short_name());
+                                this->_send("\nLogging you in as \"" + username + "\";\n\n");
+                                this->_send_login_notification();
+                            } else {
+                                this->_send("Could not log you in as "+username);
+                            }
+                        } else {
+                            this->_send("Not enough information to log you in.\n\n");
                         }
-                        m_player = new player(username);
-                        this->_send_login_notification();
                     }
                 }
+/*
+     void echo_off(void)
+     {
+         struct termios new_settings;
+         tcgetattr(0,&stored_settings);
+         new_settings = stored_settings;
+         new_settings.c_lflag &= (~ECHO);
+         tcsetattr(0,TCSANOW,&new_settings);
+         return;
+     }
+     
+     void echo_on(void)
+     {
+         tcsetattr(0,TCSANOW,&stored_settings);
+         return;
+     }
+
+ */
 
                 void _main_loop() {
                     this->m_logger->log("Starting main_loop for " + this->m_player->name());
@@ -403,6 +462,12 @@ namespace chess {
                         pt.put("player",this->m_player->name());
                         pt.put("action","logout");
                         this->_enqueue(chess::ptree::ptree_as_string(pt));
+                        delete this->m_player;
+                    }
+                    if ( this->m_storage != NULL ) {
+                        this->m_storage->disconnect();
+                        delete this->m_storage;
+                        m_storage = NULL;
                     }
                     close(m_file_desc);
                     exit(0);
@@ -446,6 +511,8 @@ namespace chess {
                 chess::server::logger *m_logger;
                 chess::server::options *m_options;
                 chess::server::client_state *m_state;
+                chess::storage::base* m_storage;
+                chess::storage::player *m_storage_player;
                 chess::server::player *m_player;
                 chess::server::challenge *m_last_challenge;
                 chess::server::draw_request *m_draw_request;
