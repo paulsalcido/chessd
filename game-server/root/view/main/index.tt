@@ -1,0 +1,3 @@
+[% c.session.person.id %]
+[% c.session.person.fullname %]
+[% c.session.person.email %]

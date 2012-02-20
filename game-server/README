@@ -1,0 +1,4 @@
+Run script/game_server_server.pl to test the application.
+
+For the model:
+script/game_server_create.pl model main DBIC::Schema game::server::Model::schemas::main create=static qualify_objects=1 db_schema=main dbi:Pg:host=localhost\;dbname=game_serve\;port=5432 game_serve game_serve

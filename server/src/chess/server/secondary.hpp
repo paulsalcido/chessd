@@ -256,31 +256,61 @@ namespace chess {
                     fd_set tmpfdset;
                     FD_ZERO(&tmpfdset);
                     FD_SET(m_file_desc,&tmpfdset);
+                    boost::property_tree::ptree tester;
                     while ( m_player == NULL ) {
+                        std::string username = "";
                         this->_send("Trying to login to psalcido-ics\n\n");
-                        this->_send("login:\n");
-                        memset(m_buf,0,DATA_BUFFER_SIZE);
-                        int read_amount = recv(m_file_desc,m_buf,DATA_BUFFER_SIZE,0);
-                        if ( read_amount == 0 ) { 
-                            this->_shutdown();
+                        this->_send("login: ");
+                        int read_amount = 0;
+
+                        while ( ! username.length() ) {
+                            memset(m_buf,0,DATA_BUFFER_SIZE);
+                            read_amount = recv(m_file_desc,m_buf,DATA_BUFFER_SIZE,0);
+                            if ( read_amount == 0 ) { 
+                                this->_shutdown();
+                            }
+                            if ( m_buf[0] != '\xff' ) {
+                                username = m_buf;
+                                _chomp(username);
+                                break;
+                            } else {
+                                tester.put<std::string>("value",m_buf);
+                                this->m_logger->debug(chess::ptree::ptree_as_string(tester));
+                            }
                         }
-                        std::string username = m_buf;
-                        _chomp(username);
-                        this->_send("\nYou are trying to login as \""+username+"\"\nIf this is you, try your password, otherwise, just press return.\n\npassword:\n");
-                        memset(m_buf,0,DATA_BUFFER_SIZE);
-                        read_amount = recv(m_file_desc,m_buf,DATA_BUFFER_SIZE,0);
-                        std::string password = m_buf;
-                        this->m_logger->debug("Got login: " + username + ", " + password);
-                        _chomp(password);
+
+                        this->_send("\nYou are trying to login as \""+username+"\"\nIf this is you, try your password, otherwise, just press return.\n\npassword: ");
+                        this->_send("\n\xff\xfb\x01");
+
+                        std::string password = "";
+
+                        while ( ! password.length() ) {
+                            memset(m_buf,0,DATA_BUFFER_SIZE);
+                            read_amount = recv(m_file_desc,m_buf,DATA_BUFFER_SIZE,0);
+                            if ( read_amount == 0 ) { 
+                                this->_shutdown();
+                            }
+                            if ( m_buf[0] != '\xff' ) {
+                                password = m_buf;
+                                _chomp(password);
+                                break;
+                            } else {
+                                tester.put<std::string>("value",m_buf);
+                                this->m_logger->debug(chess::ptree::ptree_as_string(tester));
+                            }
+                        }
+
+                        this->_send("\xff\xfc\x01");
                         if ( username.length() && password.length() ) {
                             //this->_send("Logging you in as \"" + username + "\";\n");
+                            this->m_logger->debug(username + ", " + password);
                             m_storage_player = m_storage->login(username,password);
                             if ( m_storage_player != NULL ) {
                                 m_player = new chess::server::player(m_storage_player->short_name());
                                 this->_send("\nLogging you in as \"" + username + "\";\n\n");
                                 this->_send_login_notification();
                             } else {
-                                this->_send("Could not log you in as "+username);
+                                this->_send("Could not log you in as " + username + "\n\n");
                             }
                         } else {
                             this->_send("Not enough information to log you in.\n\n");
