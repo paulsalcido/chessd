@@ -4,6 +4,7 @@
 #include <chess/game.hpp>
 
 #include <boost/property_tree/ptree.hpp>
+#include <time.h>
 
 #include <string>
 #include <sstream>
@@ -26,6 +27,9 @@
 
 #define _EM 0
 
+#define _WHITE 0
+#define _BLACK 1
+
 namespace chess {
     namespace games {
         class standard_chess : public chess::game {
@@ -41,12 +45,24 @@ namespace chess {
                     m_white = pt.get<std::string>("white");
                     m_game_number = pt.get<int>("game-id");
                     m_black = pt.get<std::string>("black");
+                    std::vector<std::string> setups;
+                    setups.push_back(m_white);
+                    setups.push_back(m_black);
                     m_starting_time = pt.get<int>("starting-time");
+                    m_ignore_time = ( m_starting_time == 0 );
                     if ( pt.count("increment") ) {
                         m_increment = pt.get<int>("increment");
+                    } else {
+                        m_increment = 0;
                     }
+                    struct timespec tv;
+                    tv.tv_nsec = 0;
+                    tv.tv_sec = m_starting_time * 60;
+                    this->setup_times(setups,tv);
                     if ( pt.count("delay") ) {
                         m_delay = pt.get<int>("delay");
+                    } else {
+                        m_delay = 0;
                     }
                     m_counter = 1;
                     m_white_turn = true;
@@ -75,6 +91,8 @@ namespace chess {
                         m_board[1][i] = _WP;
                         m_board[6][i] = _BP;
                     }
+                    /* TODO: I should add mark time here */
+                    mark_time(white(),!m_ignore_time,m_increment,m_delay);
                 }
 
                 /* Placeholder output */
@@ -87,11 +105,18 @@ namespace chess {
                 }
 
                 int white_time_remains() {
-                    return m_starting_time * 60 * 1000;
+                    //return m_starting_time * 60 * 1000;
+                    return time_remains(white());
                 }
 
                 int black_time_remains() {
-                    return m_starting_time * 60 * 1000;
+                    //return m_starting_time * 60 * 1000;
+                    return time_remains(black());
+                }
+
+                int time_remains(std::string p) {
+                    struct timespec *tr = m_time_left[p];
+                    return ( tr->tv_sec * 1000 ) + ( tr->tv_nsec / 1000000 ) + (m_delay * 1000);
                 }
 
                 const std::string black() {
@@ -189,6 +214,11 @@ namespace chess {
                         }
                     }
                     if ( retval ) {
+                        if ( this->m_white_turn ) {
+                            this->mark_time(this->white(),!m_ignore_time,m_increment,m_delay);
+                        } else {
+                            this->mark_time(this->black(),!m_ignore_time,m_increment,m_delay);
+                        }
                         this->m_white_turn = ! this->m_white_turn;
                         if ( this->m_white_turn ) {
                             m_counter++;
@@ -240,6 +270,7 @@ namespace chess {
                 int m_increment;
                 int m_delay;
                 int m_counter;
+                struct timeval m_start_move_time;
                 bool m_white_turn;
 
                 int m_board[8][8];

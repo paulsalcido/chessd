@@ -65,7 +65,7 @@ namespace chess {
                     strcpy(args[1],pass.c_str());
                     PGresult* res;
                     res=PQexecParams(m_connection,
-                        "select id,username,fullname,created from player where username=$1 and password=md5($2 || salt)",
+                        "select id,username,fullname,created from main.player where username=$1 and password=md5($2 || salt)",
                         2,NULL,args,NULL,NULL,0);
                     if ( PQntuples(res) ) {
                         // Successful login.
