@@ -1,0 +1,8 @@
+Chessd
+======
+
+I strongly recommend that you do yourself a big favor, turn around, and run far far away.  I'm not kidding.
+
+This undocumented and really terrible piece of code is an experiment that I did some time ago in writing a chess server in c++.  It sucks right now.  It needs a significant amount of rework/refactor.  I'm not even sure if it is anywhere close to a working state.  I don't know how to make it start.
+
+Why am I pushing this to github?  No damn clue.  But if this doesn't scare you at this point, fork and hack away.  Otherwise, please turn around and go someplace else because this is not where you want to be.
